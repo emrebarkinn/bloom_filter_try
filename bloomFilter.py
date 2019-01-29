@@ -15,6 +15,7 @@ class BloomFilter(object):
         fp_prob : float 
             False Positive probability in decimal 
         '''
+        self.item_low_count=items_count
         # False posible probability in decimal 
         self.fp_prob = fp_prob
 
@@ -30,10 +31,16 @@ class BloomFilter(object):
         # initialize all bits as 0 
         self.bit_array.setall(0)
 
+        self.count = 0
+
     def add(self, item):
         ''' 
         Add an item in the filter 
         '''
+
+        if self.count > self.item_low_count:
+            print("BloomFilter reached it's limit")
+            return False
         digests = []
         for i in range(self.hash_count):
             # create digest for given item.
@@ -42,10 +49,12 @@ class BloomFilter(object):
             digest = mmh3.hash(item, i) % self.size
             digests.append(digest)
 
-            # set the bit True in bit_array 
+            # set the bit True in bit_array
             self.bit_array[digest] = True
+        self.count += 1
+        return True
 
-    def check(self, item):
+    def __contains__(self, item):
         ''' 
         Check for existence of an item in filter 
         '''
@@ -57,6 +66,52 @@ class BloomFilter(object):
                 # else there is probability that it exist 
                 return False
         return True
+
+    def __len__(self):
+
+        return self.count
+
+    def copy(self):
+
+        new_filter = BloomFilter(self.item_low_count, self.fp_prob)
+        new_filter.bit_array = self.bit_array.copy()
+        return new_filter
+
+    def union(self, other):
+
+        if self.size != other.size:
+            # or self.fp_prob != other.fp.prob :
+            raise ValueError("Filters must have same size for union")
+
+        new_filter = self.copy()
+        new_filter.bit_array = new_filter.bit_array | other.bit_array
+        return new_filter
+
+    def intersection(self, other):
+
+        if self.size != other.size:
+            # or self.fp_prob != other.fp.prob :
+            raise ValueError("Filters must have same size for union")
+
+        new_filter = self.copy()
+        new_filter.bit_array = new_filter.bit_array & other.bit_array
+        return new_filter
+
+    def __or__(self, other):
+        return self.union(other)
+
+    def __and__(self, other):
+        return self.intersection(other)
+
+    """
+
+    def calculate_hashes(self, item):
+        hashes = []
+        for i in range(0, self.hash_count):
+            hashes.append(mmh3.hash(item, i) % self.size)
+
+        return hashes
+    """
 
     @classmethod
     def get_size(self, n, p):
