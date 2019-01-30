@@ -79,6 +79,9 @@ class CountingBloomFilter(object):
     def __len__(self):
 
         return self.count
+
+    # TODO consider union and intersection operations can be useful and work correctly
+    #  for counting and scalable bloom fillters
     """
     
     def copy(self):

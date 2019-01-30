@@ -15,6 +15,10 @@ class BloomFilter(object):
         fp_prob : float 
             False Positive probability in decimal 
         '''
+
+        # TODO slices calculations needed to be implemented,
+        #  each hash function must work for different slice of bit array
+
         self.item_low_count = items_count
         # False posible probability in decimal 
         self.fp_prob = fp_prob
