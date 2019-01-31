@@ -6,12 +6,13 @@ from bitarray import bitarray
 class CountingBloomFilter(object):
 
     def __init__(self, items_count, fp_prob):
-        '''
+        """
         items_count : int
             Number of items expected to be stored in bloom filter
         fp_prob : float
             False Positive probability in decimal
-        '''
+        """
+
         self.item_low_count = items_count
         # False posible probability in decimal
         self.fp_prob = fp_prob
@@ -22,11 +23,15 @@ class CountingBloomFilter(object):
         # number of hash functions to use
         self.hash_count = self.get_hash_count(self.size, items_count)
 
-        
+        self.size += self.size % self.hash_count
+
+        # slice size
+        self.slice_size = self.size // self.hash_count
+
         self.int_array = []
 
         # initialize all integers as 0
-        for i in range(0,self.size):
+        for i in range(0, self.size):
             self.int_array.append(int(0))
 
         self.count = 0
@@ -41,15 +46,17 @@ class CountingBloomFilter(object):
             print("BloomFilter reached it's limit")
             return False
         digests = []
+        start_point = 0
         for i in range(self.hash_count):
             # create digest for given item.
             # i work as seed to mmh3.hash() function
             # With different seed, digest created is different
-            digest = mmh3.hash(item, i) % self.size
-            digests.append(digest)
+            digest = mmh3.hash(item, i) % self.slice_size
+            digests.append(start_point + digest)
 
             # set the bit True in int_array
-            self.int_array[digest] += 1
+            self.int_array[start_point + digest] += 1
+            start_point += self.slice_size
         self.count += 1
         return True
 
@@ -57,10 +64,12 @@ class CountingBloomFilter(object):
 
         if item in self:
             digests = []
+            start_point = 0
             for i in range(self.hash_count):
-                digest = mmh3.hash(item, i) % self.size
-                digests.append(digest)
-                self.int_array[digest] -= 1
+                digest = mmh3.hash(item, i) % self.slice_size
+                digests.append(start_point + digest)
+                self.int_array[start_point + digest] -= 1
+                start_point += self.slice_size
             self.count -= 1
             return True
         return False
@@ -69,11 +78,13 @@ class CountingBloomFilter(object):
         '''
         Check for existence of an item in filter
         '''
+        start_point = 0
         for i in range(self.hash_count):
-            digest = mmh3.hash(item, i) % self.size
-            if self.int_array[digest] <= 0:
-                #if 
+            digest = mmh3.hash(item, i) % self.slice_size
+            if self.int_array[start_point + digest] <= 0:
+                # if
                 return False
+            start_point += self.slice_size
         return True
 
     def __len__(self):
@@ -81,15 +92,14 @@ class CountingBloomFilter(object):
         return self.count
 
     # TODO consider union and intersection operations can be useful and work correctly
-    #  for counting and scalable bloom fillters
-    """
-    
+    #  for counting and scalable bloom filters
+
     def copy(self):
 
         new_filter = CountingBloomFilter(self.item_low_count, self.fp_prob)
         new_filter.int_array = self.int_array.copy()
         return new_filter
-    
+
     def union(self, other):
 
         if self.size != other.size:
@@ -98,7 +108,7 @@ class CountingBloomFilter(object):
 
         new_filter = self.copy()
         for i in range(0, new_filter.size):
-            new_filter.int_array = new_filter.int_array | other.int_array
+            new_filter.int_array[i] = new_filter.int_array[i] + other.int_array[i]
         return new_filter
 
     def intersection(self, other):
@@ -108,7 +118,8 @@ class CountingBloomFilter(object):
             raise ValueError("Filters must have same size for union")
 
         new_filter = self.copy()
-        new_filter.int_array = new_filter.int_array & other.int_array
+        for i in range(0,new_filter.size):
+            new_filter.int_array[i] = min(new_filter.int_array[i], other.int_array[i])
         return new_filter
 
     def __or__(self, other):
@@ -116,15 +127,15 @@ class CountingBloomFilter(object):
 
     def __and__(self, other):
         return self.intersection(other)
-    
-    """
+
     """
 
     def calculate_hashes(self, item):
         hashes = []
+        start_point = 0
         for i in range(0, self.hash_count):
-            hashes.append(mmh3.hash(item, i) % self.size)
-
+            hashes.append(start_point + (mmh3.hash(item, i) % self.slice_size))
+            start_point += self.slice_size
         return hashes
     """
 

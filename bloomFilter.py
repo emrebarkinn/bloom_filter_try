@@ -4,20 +4,14 @@ from bitarray import bitarray
 
 
 class BloomFilter(object):
-    '''
-    Class for Bloom filter, using murmur3 hash function 
-    '''
 
     def __init__(self, items_count, fp_prob):
-        ''' 
-        items_count : int 
-            Number of items expected to be stored in bloom filter 
-        fp_prob : float 
-            False Positive probability in decimal 
-        '''
-
-        # TODO slices calculations needed to be implemented,
-        #  each hash function must work for different slice of bit array
+        """
+        items_count : int
+            Number of items expected to be stored in bloom filter
+        fp_prob : float
+            False Positive probability in decimal
+        """
 
         self.item_low_count = items_count
         # False posible probability in decimal 
@@ -28,6 +22,11 @@ class BloomFilter(object):
 
         # number of hash functions to use 
         self.hash_count = self.get_hash_count(self.size, items_count)
+
+        self.size += self.size % self.hash_count
+
+        # slice size
+        self.slice_size = self.size // self.hash_count
 
         # Bit array of given size 
         self.bit_array = bitarray(self.size)
@@ -47,15 +46,17 @@ class BloomFilter(object):
             print("BloomFilter reached it's limit")
             return False
         digests = []
+        start_point =0
         for i in range(self.hash_count):
             # create digest for given item.
             # i work as seed to mmh3.hash() function 
             # With different seed, digest created is different 
-            digest = mmh3.hash(item, i) % self.size
-            digests.append(digest)
+            digest = mmh3.hash(item, i) % self.slice_size
+            digests.append(start_point + digest)
 
             # set the bit True in bit_array
-            self.bit_array[digest] = True
+            self.bit_array[start_point + digest] = True
+            start_point += self.slice_size
         self.count += 1
         return True
 
@@ -63,13 +64,15 @@ class BloomFilter(object):
         ''' 
         Check for existence of an item in filter 
         '''
+        start_point = 0
         for i in range(self.hash_count):
-            digest = mmh3.hash(item, i) % self.size
-            if not self.bit_array[digest]:
+            digest = mmh3.hash(item, i) % self.slice_size
+            if not self.bit_array[start_point + digest]:
                 # if any of bit is False then,its not present
                 # in filter 
                 # else there is probability that it exist 
                 return False
+            start_point += self.slice_size
         return True
 
     def __len__(self):
@@ -112,9 +115,10 @@ class BloomFilter(object):
 
     def calculate_hashes(self, item):
         hashes = []
+        start_point = 0
         for i in range(0, self.hash_count):
-            hashes.append(mmh3.hash(item, i) % self.size)
-
+            hashes.append(start_point + (mmh3.hash(item, i) % self.slice_size))
+            start_point += self.slice_size
         return hashes
     """
 

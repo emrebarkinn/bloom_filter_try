@@ -13,6 +13,7 @@ class ScalableBloomFilter(object):
         # TODO ratio calculations needed. New bloom filters fp probability must equal to
         #  ratio * previous filter's fp_prob
         #  (for initial filter prob = fp_prob, for second prob = r * fp_prob, for third  r^2 * fp_prob)
+        self.countable = countable
         self.initial_items_count = initial_items_count
         self.fp_prob = fp_prob
         self.growth = growth
@@ -41,7 +42,15 @@ class ScalableBloomFilter(object):
 
         return False
 
-    # TODO delete and fp_prob calculation (which calculates fp prob instantly) operations will added
+    # TODO fp_prob calculation (which calculates fp prob instantly) operation will added
+    def delete(self, item):
+        if not self.countable:
+            print("Delete operation only available for counting scalable bloom filters")
+            return False
+        for temp in reversed(self.bloom_filters):
+            if temp.delete(item):
+                return True
+        return False
 
     def get_total_size(self):
 
