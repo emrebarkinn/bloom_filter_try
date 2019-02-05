@@ -23,7 +23,7 @@ class BloomFilter(object):
         # number of hash functions to use 
         self.hash_count = self.get_hash_count(self.size, items_count)
 
-        self.size += self.size % self.hash_count
+        self.size -= self.size % self.hash_count
 
         # slice size
         self.slice_size = self.size // self.hash_count

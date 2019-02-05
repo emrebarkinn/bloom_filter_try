@@ -1,18 +1,20 @@
 import math
 import mmh3
+import numpy as np
 from bitarray import bitarray
+from bitstring import BitArray
 
 
 class CountingBloomFilter(object):
 
-    def __init__(self, items_count, fp_prob):
+    def __init__(self, items_count, fp_prob, count_size=5):
         """
         items_count : int
             Number of items expected to be stored in bloom filter
         fp_prob : float
             False Positive probability in decimal
         """
-
+        self.count_size = count_size
         self.item_low_count = items_count
         # False posible probability in decimal
         self.fp_prob = fp_prob
@@ -23,18 +25,42 @@ class CountingBloomFilter(object):
         # number of hash functions to use
         self.hash_count = self.get_hash_count(self.size, items_count)
 
-        self.size += self.size % self.hash_count
+        self.size -= self.size % self.hash_count
 
         # slice size
         self.slice_size = self.size // self.hash_count
 
-        self.int_array = []
+        # self.int_array = bytearray(self.size)
 
-        # initialize all integers as 0
-        for i in range(0, self.size):
-            self.int_array.append(int(0))
+        self.bit_array = BitArray(length=self.size*self.count_size)
 
         self.count = 0
+
+    def add_value_bit(self, index, value):
+
+        temp = self.bit_array[index: index + self.count_size].uint
+
+        if format(temp + value, '#0'+str(self.count_size + 2)+'b').__len__() <= 2+self.count_size:
+            self.bit_array.overwrite(format(temp + value, '#0'+str(self.count_size)+'b'), index)
+        else:
+            pass
+            # overflow on bit value
+
+    def set_value_bit(self, index, value):
+
+        if format(value, '#0' + str(self.count_size + 2) + 'b').__len__() <= 2 + self.count_size:
+            self.bit_array.overwrite(format(value, '#0' + str(self.count_size) + 'b'), index)
+        else:
+            pass
+            # overflow on bit value
+
+    def get_bit_value(self, index):
+
+        return self.bit_array[index: index + self.count_size].uint
+
+    def check_bit(self, index):
+
+        return self.bit_array[index: index + self.count_size].uint > 0
 
     def add(self, item):
         '''
@@ -52,11 +78,11 @@ class CountingBloomFilter(object):
             # i work as seed to mmh3.hash() function
             # With different seed, digest created is different
             digest = mmh3.hash(item, i) % self.slice_size
-            digests.append(start_point + digest)
+            digests.append(start_point + digest*self.count_size)
 
             # set the bit True in int_array
-            self.int_array[start_point + digest] += 1
-            start_point += self.slice_size
+            self.add_value_bit(start_point + digest*self.count_size, 1)
+            start_point += self.slice_size*self.count_size
         self.count += 1
         return True
 
@@ -67,9 +93,9 @@ class CountingBloomFilter(object):
             start_point = 0
             for i in range(self.hash_count):
                 digest = mmh3.hash(item, i) % self.slice_size
-                digests.append(start_point + digest)
-                self.int_array[start_point + digest] -= 1
-                start_point += self.slice_size
+                digests.append(start_point + digest*self.count_size)
+                self.add_value_bit(start_point + digest*self.count_size, -1)
+                start_point += self.slice_size*self.count_size
             self.count -= 1
             return True
         return False
@@ -81,10 +107,10 @@ class CountingBloomFilter(object):
         start_point = 0
         for i in range(self.hash_count):
             digest = mmh3.hash(item, i) % self.slice_size
-            if self.int_array[start_point + digest] <= 0:
+            if not self.check_bit(start_point + digest*self.count_size):
                 # if
                 return False
-            start_point += self.slice_size
+            start_point += self.slice_size*self.count_size
         return True
 
     def __len__(self):
@@ -97,7 +123,7 @@ class CountingBloomFilter(object):
     def copy(self):
 
         new_filter = CountingBloomFilter(self.item_low_count, self.fp_prob)
-        new_filter.int_array = self.int_array.copy()
+        new_filter.int_array = self.bit_array.copy()
         return new_filter
 
     def union(self, other):
@@ -108,7 +134,7 @@ class CountingBloomFilter(object):
 
         new_filter = self.copy()
         for i in range(0, new_filter.size):
-            new_filter.int_array[i] = new_filter.int_array[i] + other.int_array[i]
+            new_filter.add_value_bit(i*self.count_size, other.get_bit_value(i))
         return new_filter
 
     def intersection(self, other):
@@ -118,8 +144,8 @@ class CountingBloomFilter(object):
             raise ValueError("Filters must have same size for union")
 
         new_filter = self.copy()
-        for i in range(0,new_filter.size):
-            new_filter.int_array[i] = min(new_filter.int_array[i], other.int_array[i])
+        for i in range(0, new_filter.size):
+            new_filter.set_value_bit(i*self.count_size, min(new_filter.get_bit_value(i),other.get_bit_value(i)))
         return new_filter
 
     def __or__(self, other):
