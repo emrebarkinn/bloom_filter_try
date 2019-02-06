@@ -35,7 +35,8 @@ class ScalableBloomFilter(object):
         else:
             temp_filter = self.bloom_filters[-1]
             if temp_filter.count >= temp_filter.item_low_count:
-                temp_filter = self.create_filter(temp_filter.size * self.growth, self.fp_prob)  # TODO check fp prob
+                temp_filter = self.create_filter(temp_filter.size * self.growth, temp_filter.fp_prob * 0.1)  # 0.1 is the ratio for creating next filter
+                # TODO check fp prob
                 self.bloom_filters.append(temp_filter)
 
         temp_filter.add(item)
