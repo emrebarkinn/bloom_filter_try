@@ -7,14 +7,13 @@ from bitstring import BitArray
 
 class CountingBloomFilter(object):
 
-    def __init__(self, items_count, fp_prob, count_size=8):
+    def __init__(self, items_count, fp_prob):
         """
         items_count : int
             Number of items expected to be stored in bloom filter
         fp_prob : float
             False Positive probability in decimal
         """
-        self.count_size = count_size
         self.item_low_count = items_count
         # False posible probability in decimal
         self.fp_prob = fp_prob
@@ -31,57 +30,9 @@ class CountingBloomFilter(object):
         # slice size
         self.slice_size = self.size // self.hash_count
 
-        if self.count_size == 8:
-            self.bit_array = bytearray(self.size)
-        else:
-            self.bit_array = BitArray(length=self.size*self.count_size)
+        self.bit_array = bytearray(self.size)
 
         self.count = 0
-
-    def set_value_bit(self, index, value):
-
-        temp = bitarray(('{0:0' + str(self.count_size) + 'b}').format(value))
-        if temp.length() == self.count_size:
-            for i in range(self.count_size - 1, -1, -1):
-                self.bit_array[index * self.count_size + i] = temp[i]
-
-            # overflow on bit value
-
-    def get_bit_value(self, index):
-
-        return self.bit_array[index*self.count_size: index*self.count_size + self.count_size].uint
-
-    def check_bit(self, index):
-
-        return self.bit_array[index*self.count_size: index*self.count_size + self.count_size].uint > 0
-
-    def half_adder(self, bit_a, bit_b):
-        return (bit_a ^ bit_b), bit_a and bit_b
-
-    def full_adder(self, bit_a, bit_b, carry=0):
-        sum1, carry1 = self.half_adder(bit_a, bit_b)
-        sum2, carry2 = self.half_adder(sum1, carry)
-        return sum2, carry1 or carry2
-
-    def binary_bitarray_adder(self, value, index):
-        bits_b = bitarray(('{0:0' + str(self.count_size) + 'b}').format(value))
-        carry = 0
-        for i in range(self.count_size - 1, -1, -1):
-            summ, carry = self.full_adder(self.bit_array[index*self.count_size + i], bits_b[i], carry)
-            self.bit_array[index * self.count_size + i] = summ
-
-        if carry & (self.bit_array[index*self.count_size] ^ bits_b[0]):
-            print("Overflow")
-            self.binary_bitarray_sub(bits_b,index)
-
-    def binary_bitarray_sub(self,  value, index):
-        carry = 1
-        bits_b = bitarray(('{0:0' + str(self.count_size) + 'b}').format(value))
-        bits_b.invert()
-
-        for i in range(self.count_size - 1, -1, -1):
-            summ, carry = self.full_adder(self.bit_array[index * self.count_size + i], bits_b[i], carry)
-            self.bit_array[index * self.count_size + i] = summ
 
     def add(self, item):
         '''
@@ -100,12 +51,10 @@ class CountingBloomFilter(object):
             # With different seed, digest created is different
             digest = mmh3.hash(item, i) % self.slice_size
 
-
             # set the bit True in int_array
-            if self.count_size == 8:
-                self.bit_array[start_point + digest] += 1
-            else:
-                self.binary_bitarray_adder(1, start_point + digest)
+
+            self.bit_array[start_point + digest] += 1
+
             start_point += self.slice_size
         self.count += 1
         return True
@@ -118,10 +67,7 @@ class CountingBloomFilter(object):
             for i in range(self.hash_count):
                 digest = mmh3.hash(item, i) % self.slice_size
 
-                if self.count_size == 8:
-                    self.bit_array[start_point + digest] -= 1
-                else:
-                    self.binary_bitarray_sub(1,start_point + digest)
+                self.bit_array[start_point + digest] -= 1
 
                 start_point += self.slice_size
             self.count -= 1
@@ -135,14 +81,10 @@ class CountingBloomFilter(object):
         start_point = 0
         for i in range(self.hash_count):
             digest = mmh3.hash(item, i) % self.slice_size
-            if self.count_size == 8:
-                if not self.bit_array[start_point + digest] > 0:
-                    # if
-                    return False
-            else:
-                if not self.check_bit(start_point + digest):
-                    # if
-                    return False
+
+            if not self.bit_array[start_point + digest] > 0:
+                # if
+                return False
             start_point += self.slice_size
         return True
 

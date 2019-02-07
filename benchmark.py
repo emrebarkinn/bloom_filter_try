@@ -6,7 +6,7 @@ import time
 
 def main():
     input_size = 100000
-    fp_rate = 0.01
+    fp_rate = 0.001
 
     bloom_filter = BloomFilter(input_size, fp_rate)
     start_time = time.time()
@@ -27,10 +27,10 @@ def main():
     print()
     print("For Standard Bloom Filter : \nFalse positive count:" + str(fp_count) + "  in " + str(input_size) + " try. " + str(
         (fp_count / input_size)) + " rate of false positive")
-    print("Avg lookup time :" + str(avg_lookup_time) + "  Avg add time:" + str(avg_add_time))
+    print("Avg lookup time :" + str('{:.20f}'.format(avg_lookup_time)) + "  Avg add time:" + str('{:.20f}'.format(avg_add_time)))
     print("Memory usage in bytes :" + str(memory_usage.get_obj_size(bloom_filter) + bloom_filter.bit_array.buffer_info()[4]))
 
-    counting_bloom_filter = CountingBloomFilter(input_size, fp_rate, count_size=8)
+    counting_bloom_filter = CountingBloomFilter(input_size, fp_rate)
 
     start_time = time.time()
     for i in range(0, input_size):
@@ -52,10 +52,10 @@ def main():
     print()
     print("For counting filter :\nFalse positive count:" + str(fp_count) + "  in " + str(input_size) + " try. " + str(
         (fp_count / input_size)) + " rate of false positive")
-    print("Avg lookup time :" + str(avg_lookup_time) + "  Avg add time:" + str(avg_add_time))
+    print("Avg lookup time :" + str('{:.20f}'.format(avg_lookup_time)) + "  Avg add time:" + str('{:.20f}'.format(avg_add_time)))
     print("Memory usage in bytes :" + str(memory_usage.get_obj_size(counting_bloom_filter)))
 
-    scalable_bloom_filter = ScalableBloomFilter(fp_prob=fp_rate, growth=ScalableBloomFilter.LARGE_GROWTH)
+    scalable_bloom_filter = ScalableBloomFilter(fp_prob=fp_rate, growth=ScalableBloomFilter.SMALL_GROWTH)
 
     start_time = time.time()
     for i in range(0, input_size):
@@ -75,13 +75,13 @@ def main():
     print()
     print("For scalable filter :\nFalse positive count:" + str(fp_count) + "  in " + str(input_size) + " try. " + str(
         (fp_count / input_size)) + " rate of false positive")
-    print("Avg lookup time :" + str(avg_lookup_time) + "  Avg add time:" + str(avg_add_time))
+    print("Avg lookup time :" + str('{:.20f}'.format(avg_lookup_time)) + "  Avg add time:" + str('{:.20f}'.format(avg_add_time)))
     temp = 0
     for i in scalable_bloom_filter.bloom_filters:
         temp += i.bit_array.buffer_info()[4]
     print("Memory usage in bytes :" + str(memory_usage.get_obj_size(scalable_bloom_filter) + temp))
 
-    c_scalable_bloom_filter = ScalableBloomFilter(fp_prob=fp_rate, growth=ScalableBloomFilter.LARGE_GROWTH,countable=True)
+    c_scalable_bloom_filter = ScalableBloomFilter(fp_prob=fp_rate, growth=ScalableBloomFilter.SMALL_GROWTH, countable=True)
 
     start_time = time.time()
     for i in range(0, input_size):
@@ -100,7 +100,7 @@ def main():
     print()
     print("For counting scalable filter :\nFalse positive count:" + str(fp_count) + "  in " + str(input_size) + " try. " + str(
         (fp_count / input_size)) + " rate of false positive")
-    print("Avg lookup time :" + str(avg_lookup_time) + "  Avg add time:" + str(avg_add_time))
+    print("Avg lookup time :" + str('{:.20f}'.format(avg_lookup_time)) + "  Avg add time:" + str('{:.20f}'.format(avg_add_time)))
     print("Memory usage in bytes :" + str(memory_usage.get_obj_size(c_scalable_bloom_filter)))
 
     size_sum = 0
@@ -132,8 +132,13 @@ def main():
     avg_lookup_time = (end_time - start_time) / input_size
     print()
     print("For Hashmap ")
-    print("Avg lookup time :" + str(avg_lookup_time) + "  Avg add time:" + str(avg_add_time))
+    print("Avg lookup time :" + str('{:.20f}'.format(avg_lookup_time)) + "  Avg add time:" + str('{:.20f}'.format(avg_add_time)))
     print("Memory usage in bytes :" + str(memory_usage.get_obj_size(hasmap)))
+    temp = 0
+    for i in c_scalable_bloom_filter.bloom_filters:
+        temp += memory_usage.get_obj_size(i)
+    print("aaa" + str(memory_usage.get_obj_size(c_scalable_bloom_filter.bloom_filters)))
+    print("xxx" + str(temp))
 
 if __name__ == "__main__":
     main()
