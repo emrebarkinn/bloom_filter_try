@@ -7,13 +7,14 @@ from bitstring import BitArray
 
 class CountingBloomFilter(object):
 
-    def __init__(self, items_count, fp_prob):
+    def __init__(self, items_count, fp_prob, count_size=8):
         """
         items_count : int
             Number of items expected to be stored in bloom filter
         fp_prob : float
             False Positive probability in decimal
         """
+        self.count_size = count_size
         self.item_low_count = items_count
         # False posible probability in decimal
         self.fp_prob = fp_prob
@@ -30,16 +31,75 @@ class CountingBloomFilter(object):
         # slice size
         self.slice_size = self.size // self.hash_count
 
-        self.bit_array = bytearray(self.size)
+        if self.count_size == 8:
+            self.bit_array = bytearray(self.size)
+        else:
+            self.bit_array = bitarray(self.size*self.count_size)
+            self.bit_array.setall(0)
 
         self.count = 0
+
+    def set_value_bit(self, index, value):
+
+        temp = bitarray(('{0:0' + str(self.count_size) + 'b}').format(value))
+        if temp.length() == self.count_size:
+            for i in range(self.count_size - 1, -1, -1):
+                self.bit_array[index * self.count_size + i] = temp[i]
+
+            # overflow on bit value
+
+    def get_bit_value(self, index):
+
+        if self.count_size == 8:
+            return self.bit_array[index]
+
+        value = 0
+        for i in range(self.count_size - 1, 0, -1):
+            if self.bit_array[index*self.count_size + i]:
+                value += 2 ** (self.count_size - 1 - i)
+
+        return value
+
+    def check_bit(self, index):
+
+        return self.get_bit_value(index) > 0
+
+    def half_adder(self, bit_a, bit_b):
+        return (bit_a ^ bit_b), bit_a and bit_b
+
+    def full_adder(self, bit_a, bit_b, carry=0):
+        sum1, carry1 = self.half_adder(bit_a, bit_b)
+        sum2, carry2 = self.half_adder(sum1, carry)
+        return sum2, carry1 or carry2
+
+    def binary_bitarray_adder(self, value, index):
+        bits_b = bitarray(('{0:0' + str(self.count_size) + 'b}').format(value))
+        carry = False
+        for i in range(self.count_size - 1, -1, -1):
+            summ, carry = self.full_adder(self.bit_array[index*self.count_size + i], bits_b[i], carry)
+            self.bit_array[index * self.count_size + i] = summ
+
+        if carry:
+            print("Overflow")
+            self.binary_bitarray_sub(value, index)
+
+    def binary_bitarray_sub(self,  value, index):
+        carry = 1
+        bits_b = bitarray(('{0:0' + str(self.count_size) + 'b}').format(value))
+        bits_b = ~ bits_b
+
+        for i in range(self.count_size - 1, -1, -1):
+            summ, carry = self.full_adder(self.bit_array[index * self.count_size + i], bits_b[i], carry)
+            self.bit_array[index * self.count_size + i] = summ
 
     def add(self, item):
         '''
         Add an item in the filter
         '''
+        """
         if item in self:
             return False
+        """
         if self.count > self.item_low_count:
             print("BloomFilter reached it's limit")
             return False
@@ -51,10 +111,12 @@ class CountingBloomFilter(object):
             # With different seed, digest created is different
             digest = mmh3.hash(item, i) % self.slice_size
 
+
             # set the bit True in int_array
-
-            self.bit_array[start_point + digest] += 1
-
+            if self.count_size == 8:
+                self.bit_array[start_point + digest] += 1
+            else:
+                self.binary_bitarray_adder(1, start_point + digest)
             start_point += self.slice_size
         self.count += 1
         return True
@@ -67,7 +129,10 @@ class CountingBloomFilter(object):
             for i in range(self.hash_count):
                 digest = mmh3.hash(item, i) % self.slice_size
 
-                self.bit_array[start_point + digest] -= 1
+                if self.count_size == 8:
+                    self.bit_array[start_point + digest] -= 1
+                else:
+                    self.binary_bitarray_sub(1,start_point + digest)
 
                 start_point += self.slice_size
             self.count -= 1
@@ -81,10 +146,14 @@ class CountingBloomFilter(object):
         start_point = 0
         for i in range(self.hash_count):
             digest = mmh3.hash(item, i) % self.slice_size
-
-            if not self.bit_array[start_point + digest] > 0:
-                # if
-                return False
+            if self.count_size == 8:
+                if not self.bit_array[start_point + digest] > 0:
+                    # if
+                    return False
+            else:
+                if not self.check_bit(start_point + digest):
+                    # if
+                    return False
             start_point += self.slice_size
         return True
 
@@ -130,7 +199,6 @@ class CountingBloomFilter(object):
         return self.intersection(other)
 
     """
-
     def calculate_hashes(self, item):
         hashes = []
         start_point = 0
@@ -160,7 +228,6 @@ class CountingBloomFilter(object):
         Return the hash function(k) to be used using
         following formula
         k = (m/n) * lg(2)
-
         m : int
             size of bit array
         n : int

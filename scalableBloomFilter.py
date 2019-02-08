@@ -8,7 +8,7 @@ class ScalableBloomFilter(object):
     SMALL_GROWTH = 2
     LARGE_GROWTH = 4
 
-    def __init__(self, initial_items_count=100, fp_prob=0.001, growth=SMALL_GROWTH, countable=False):
+    def __init__(self, initial_items_count=100, fp_prob=0.001, growth=SMALL_GROWTH, countable=False , count_size=8):
 
         # TODO ratio calculations needed. New bloom filters fp probability must equal to
         #  ratio * previous filter's fp_prob
@@ -17,6 +17,7 @@ class ScalableBloomFilter(object):
         self.initial_items_count = initial_items_count
         self.fp_prob = fp_prob
         self.growth = growth
+        self.count_size = count_size
 
         if countable:
             self.create_filter = CountingBloomFilter
@@ -30,12 +31,12 @@ class ScalableBloomFilter(object):
         if item in self:
             return True
         if not self.bloom_filters:
-            temp_filter = self.create_filter(self.initial_items_count, self.fp_prob)
+            temp_filter = self.create_filter(self.initial_items_count, self.fp_prob * 0.9, count_size=self.count_size)
             self.bloom_filters.append(temp_filter)
         else:
             temp_filter = self.bloom_filters[-1]
             if temp_filter.count >= temp_filter.item_low_count:
-                temp_filter = self.create_filter(temp_filter.size * self.growth, temp_filter.fp_prob * 0.1)  # 0.1 is the ratio for creating next filter
+                temp_filter = self.create_filter(temp_filter.size * self.growth, temp_filter.fp_prob * 0.1, count_size=self.count_size)  # 0.1 is the ratio for creating next filter
                 # TODO check fp prob
                 self.bloom_filters.append(temp_filter)
 

@@ -5,7 +5,7 @@ from bitarray import bitarray
 
 class BloomFilter(object):
 
-    def __init__(self, items_count, fp_prob):
+    def __init__(self, items_count, fp_prob, count_size = 0):
         """
         items_count : int
             Number of items expected to be stored in bloom filter
