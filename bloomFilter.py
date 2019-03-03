@@ -76,8 +76,41 @@ class BloomFilter(object):
             start_point += self.slice_size
         return True
 
-    def __len__(self):
+    def set_item(self, item):
+        '''
+        Add an item in the filter
+        '''
+        if item in self:
+            start_point = 0
+            temp = ""
+            for i in range(self.hash_count):
+                digest = mmh3.hash(item, i) % self.slice_size
+                temp.join(str(start_point + digest))
+                start_point += self.slice_size
+            setattr(self, temp, getattr(self, temp)+1)
+            return getattr(self, temp)
 
+        if self.count > self.item_low_count:
+            print("BloomFilter reached it's limit")
+            return False
+        digests = []
+        start_point = 0
+        temp = ""
+        for i in range(self.hash_count):
+            # create digest for given item.
+            # i work as seed to mmh3.hash() function
+            # With different seed, digest created is different
+            digest = mmh3.hash(item, i) % self.slice_size
+            digests.append(start_point + digest)
+            temp.join(str(start_point + digest))
+            # set the bit True in bit_array
+            self.bit_array[start_point + digest] = True
+            start_point += self.slice_size
+        self.count += 1
+        setattr(self, temp, 1)
+        return True
+
+    def __len__(self):
         return self.count
 
     def copy(self):
@@ -111,6 +144,9 @@ class BloomFilter(object):
 
     def __and__(self, other):
         return self.intersection(other)
+
+    def get_bitarray_size(self):
+        return self.bit_array.buffer_info()[4]
 
     """
 

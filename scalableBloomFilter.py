@@ -44,6 +44,12 @@ class ScalableBloomFilter(object):
 
         return False
 
+    def get_bitarray_size(self):
+        size = 0
+        for i in self.bloom_filters:
+            size += i.get_bitarray_size()
+        return size
+
     # TODO fp_prob calculation (which calculates fp prob instantly) operation will added
     def delete(self, item):
         if not self.countable:

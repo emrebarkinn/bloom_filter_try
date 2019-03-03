@@ -6,10 +6,10 @@ import time
 
 
 def main():
-    input_size = 1000
-    fp_rate = 0.001
+    input_size = 10000
+    fp_rate = 0.1
 
-    count_size = 8
+    count_size = 4
 
     bloom_filter = BloomFilter(input_size, fp_rate)
     start_time = time.time()

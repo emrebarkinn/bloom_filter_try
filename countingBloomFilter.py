@@ -7,7 +7,7 @@ from bitstring import BitArray
 
 class CountingBloomFilter(object):
 
-    def __init__(self, items_count, fp_prob, count_size=8):
+    def __init__(self, items_count, fp_prob, count_size=4):
         """
         items_count : int
             Number of items expected to be stored in bloom filter
@@ -54,7 +54,7 @@ class CountingBloomFilter(object):
             return self.bit_array[index]
 
         value = 0
-        for i in range(self.count_size - 1, 0, -1):
+        for i in range(self.count_size - 1, -1, -1):
             if self.bit_array[index*self.count_size + i]:
                 value += 2 ** (self.count_size - 1 - i)
 
@@ -166,7 +166,7 @@ class CountingBloomFilter(object):
 
     def copy(self):
 
-        new_filter = CountingBloomFilter(self.item_low_count, self.fp_prob)
+        new_filter = CountingBloomFilter(self.item_low_count, self.fp_prob, count_size=self.count_size)
         new_filter.bit_array = self.bit_array.copy()
         return new_filter
 
@@ -178,7 +178,10 @@ class CountingBloomFilter(object):
 
         new_filter = self.copy()
         for i in range(0, new_filter.size):
-            new_filter.bit_array[i] += other.bit_array[i]
+            if new_filter.count_size == 8:
+                new_filter.bit_array[i] += other.bit_array[i]
+            else:
+                new_filter.binary_bitarray_adder(other.get_bit_value(i), i)
         return new_filter
 
     def intersection(self, other):
@@ -188,8 +191,12 @@ class CountingBloomFilter(object):
             raise ValueError("Filters must have same size for union")
 
         new_filter = self.copy()
+
         for i in range(0, new_filter.size):
-            new_filter.bit_array[i] = min(new_filter.bit_array[i], other.bit_array[i])
+            if self.count_size == 8:
+                new_filter.bit_array[i] = min(new_filter.bit_array[i], other.bit_array[i])
+            else:
+                new_filter.set_value_bit(i, min(new_filter.get_bit_value(i), other.get_bit_value(i)))
         return new_filter
 
     def __or__(self, other):
@@ -197,6 +204,27 @@ class CountingBloomFilter(object):
 
     def __and__(self, other):
         return self.intersection(other)
+
+    def __sub__(self, other):
+        if self.size != other.size:
+            # or self.fp_prob != other.fp.prob :
+            raise ValueError("Filters must have same size for union")
+
+        new_filter = self.copy()
+
+        for i in range(0, new_filter.size):
+            if self.count_size == 8:
+                new_filter.bit_array[i] -= other.bit_array[i]
+            else:
+                new_filter.binary_bitarray_sub(other.get_bit_value(i), i)
+                new_filter.set_value_bit(i, min(new_filter.get_bit_value(i), other.get_bit_value(i)))
+        return new_filter
+
+    def __add__(self, other):
+        return self.union(other)
+
+    def get_bitarray_size(self):
+        return self.bit_array.buffer_info()[4]
 
     """
     def calculate_hashes(self, item):
