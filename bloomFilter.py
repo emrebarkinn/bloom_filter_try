@@ -41,8 +41,10 @@ class BloomFilter(object):
         ''' 
         Add an item in the filter 
         '''
+        """
         if item in self:
             return False
+        """
         if self.count > self.item_low_count:
             print("BloomFilter reached it's limit")
             return False

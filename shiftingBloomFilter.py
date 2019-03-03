@@ -25,7 +25,7 @@ class ShiftingBloomFilterM(object):
         fp_prob : float
             False Positive probability in decimal
         """
-
+        # TODO fp rate is smaller than expected, formulas need to be checked
         self.item_low_count = items_count
         # False posible probability in decimal
         self.fp_prob = fp_prob
@@ -64,7 +64,7 @@ class ShiftingBloomFilterM(object):
             digest = mmh3.hash(item, i) % self.size
 
             # set the bit True in bit_array
-            self.bit_array[digest], self.bit_array[digest + 0] = True, True
+            self.bit_array[digest], self.bit_array[digest + o] = True, True
         self.count += 1
         return True
 
@@ -75,7 +75,7 @@ class ShiftingBloomFilterM(object):
         o = self.o_function(item)
         for i in range(self.hash_count):
             digest = mmh3.hash(item, i) % self.size
-            if not self.bit_array[digest] | self.bit_array[digest + o] :
+            if not self.bit_array[digest] & self.bit_array[digest + o]:
                 # if any of bit is False then,its not present
                 # in filter
                 # else there is probability that it exist

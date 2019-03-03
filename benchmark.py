@@ -2,12 +2,13 @@ from memory_usage import memory_usage
 from bloomFilter import BloomFilter
 from countingBloomFilter import CountingBloomFilter
 from scalableBloomFilter import ScalableBloomFilter
+from shiftingBloomFilter import ShiftingBloomFilterM
 import time
 
 
 def main():
     input_size = 10000
-    fp_rate = 0.1
+    fp_rate = 0.01
 
     count_size = 4
 
@@ -34,7 +35,31 @@ def main():
     print("Avg lookup time :" + str('{:.20f}'.format(avg_lookup_time)) + "  Avg add time:" + str(
         '{:.20f}'.format(avg_add_time)))
     print("Memory usage in bytes :" + str(
-        memory_usage.get_obj_size(bloom_filter) + bloom_filter.bit_array.buffer_info()[4]))
+        memory_usage.get_obj_size(bloom_filter) + bloom_filter.get_bitarray_size()))
+
+    shifting_bloom_filter = ShiftingBloomFilterM(input_size, fp_rate)
+    start_time = time.time()
+    for i in range(0, input_size):
+        shifting_bloom_filter.add(str(i))
+    end_time = time.time()
+    avg_add_time = (end_time - start_time) / input_size
+
+    start_time = time.time()
+    fp_count = 0
+    for i in range(input_size, input_size * 2):
+        if str(i) in shifting_bloom_filter:
+            fp_count += 1
+    end_time = time.time()
+    avg_lookup_time = (end_time - start_time) / input_size
+
+    print()
+    print("For Shifting Bloom Filter : \nFalse positive count:" + str(fp_count) + "  in " + str(
+        input_size) + " try. " + str(
+        (fp_count / input_size)) + " rate of false positive")
+    print("Avg lookup time :" + str('{:.20f}'.format(avg_lookup_time)) + "  Avg add time:" + str(
+        '{:.20f}'.format(avg_add_time)))
+    print("Memory usage in bytes :" + str(
+        memory_usage.get_obj_size(shifting_bloom_filter) + shifting_bloom_filter.get_bitarray_size()))
 
     counting_bloom_filter = CountingBloomFilter(input_size, fp_rate, count_size=count_size)
 
@@ -61,7 +86,7 @@ def main():
     print("Avg lookup time :" + str('{:.20f}'.format(avg_lookup_time)) + "  Avg add time:" + str(
         '{:.20f}'.format(avg_add_time)))
     print("Memory usage in bytes :" + str(
-        memory_usage.get_obj_size(counting_bloom_filter) ))
+        memory_usage.get_obj_size(counting_bloom_filter) + counting_bloom_filter.get_bitarray_size() ))
 
     scalable_bloom_filter = ScalableBloomFilter(fp_prob=fp_rate, growth=ScalableBloomFilter.SMALL_GROWTH)
 
@@ -85,10 +110,8 @@ def main():
         (fp_count / input_size)) + " rate of false positive")
     print("Avg lookup time :" + str('{:.20f}'.format(avg_lookup_time)) + "  Avg add time:" + str(
         '{:.20f}'.format(avg_add_time)))
-    temp = 0
-    for i in scalable_bloom_filter.bloom_filters:
-        temp += i.bit_array.buffer_info()[4]
-    print("Memory usage in bytes :" + str(memory_usage.get_obj_size(scalable_bloom_filter) + temp))
+
+    print("Memory usage in bytes :" + str(memory_usage.get_obj_size(scalable_bloom_filter) + scalable_bloom_filter.get_bitarray_size()))
 
     c_scalable_bloom_filter = ScalableBloomFilter(fp_prob=fp_rate, growth=ScalableBloomFilter.SMALL_GROWTH,
                                                   countable=True, count_size=count_size)
@@ -113,9 +136,8 @@ def main():
         (fp_count / input_size)) + " rate of false positive")
     print("Avg lookup time :" + str('{:.20f}'.format(avg_lookup_time)) + "  Avg add time:" + str(
         '{:.20f}'.format(avg_add_time)))
-    temp = 0
 
-    print("Memory usage in bytes :" + str(memory_usage.get_obj_size(c_scalable_bloom_filter) + temp))
+    print("Memory usage in bytes :" + str(memory_usage.get_obj_size(c_scalable_bloom_filter) + c_scalable_bloom_filter.get_bitarray_size()))
 
     size_sum = 0
     filled_bit_count = 0
